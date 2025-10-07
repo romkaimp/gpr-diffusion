@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # Важно для 3D проекции
 
 
-def generate_lorenz_data_reconstruction(sigma, rho, beta, trajectory_size=10000,
+def generate_lorenz_data_reconstruction1(sigma, rho, beta, trajectory_size=10000,
                          num_trajectories=100, seq_length=40, dt=0.01, transient=1000):
     '''
     :param sigma: float Параметры системы Лоренца
@@ -67,8 +67,69 @@ def generate_lorenz_data_reconstruction(sigma, rho, beta, trajectory_size=10000,
 
     return dataset
 
-def generate_lorenz_data_prediction(sigma, rho, beta, trajectory_size=10000,
-                         num_trajectories=100, seq_length=40, test_length=30, dt=0.01, transient=1000):
+def generate_lorenz_data_reconstruction(
+    sigma, rho, beta, trajectory_size=10000,
+    num_trajectories=100, seq_length=40, dt=0.01, transient=1000,
+    sliding=True
+):
+    '''
+    :param sigma: float Параметры системы Лоренца
+    :param rho:
+    :param beta:
+    :param trajectory_size: количество точек после отбрасывания transient
+    :param num_trajectories: количество траекторий
+    :param seq_length: длина последовательности (окна)
+    :param dt: шаг интегрирования
+    :param transient: количество точек для "разгона"
+    :param sliding: если True — использовать скользящее окно, иначе дискретные окна
+    :return: dataset : ndarray
+        Данные формы (N, seq_length, 3)
+    '''
+    total_points = transient + trajectory_size
+
+    # Временной интервал
+    t_span = (0, total_points * dt)
+    t_eval = np.linspace(0, total_points * dt, total_points)
+
+    dataset = []
+    for i in range(num_trajectories):
+        # Случайные начальные условия
+        initial_state = [
+            random.uniform(-20, 20),
+            random.uniform(-25, 25),
+            random.uniform(5, 40)
+        ]
+
+        solution = solve_ivp(
+            lambda t, state: lorenz_system(state, sigma, rho, beta),
+            t_span, initial_state, t_eval=t_eval,
+            method='RK45', rtol=1e-6, atol=1e-9
+        )
+
+        # Извлекаем результаты
+        x, y, z = solution.y
+        # Отбрасываем переходный процесс
+        data = np.column_stack([x[transient:], y[transient:], z[transient:]])
+
+        if sliding:
+            # Скользящее окно
+            num_sequences = trajectory_size - seq_length + 1
+            for j in range(0, num_sequences, 64):
+                dataset.append(data[j:j+seq_length])
+        else:
+            # Непересекающиеся окна
+            num_sequences = (trajectory_size - seq_length) // seq_length
+            for j in range(num_sequences):
+                start_idx = j * seq_length
+                end_idx = start_idx + seq_length
+                dataset.append(data[start_idx:end_idx])
+
+    dataset = np.array(dataset)
+    np.random.shuffle(dataset)
+    return dataset
+
+def generate_lorenz_data_prediction_1(sigma, rho, beta, trajectory_size=10000,
+                         num_trajectories=100, seq_length=32, test_length=32, dt=0.02, transient=1000):
     '''
 
     :param sigma:
@@ -127,6 +188,59 @@ def generate_lorenz_data_prediction(sigma, rho, beta, trajectory_size=10000,
     dataset_test = np.array(dataset_test)
 
     return dataset, dataset_test
+
+def generate_lorenz_data_prediction(
+        sigma, rho, beta,
+        trajectory_size=10000,
+        num_trajectories=100,
+        seq_length=32,
+        test_length=32,
+        dt=0.02, transient=1000,
+        sliding_window=True
+    ):
+    """
+    Генерация датасета для задачи предсказания:
+    X (train) -> Y (target future).
+    """
+
+    total_points = transient + trajectory_size
+    t_span = (0, total_points * dt)
+    t_eval = np.linspace(0, total_points * dt, total_points)
+
+    X, Y = [], []
+
+    for i in range(num_trajectories):
+        # случайные начальные условия
+        initial_state = [
+            random.uniform(-20, 20),
+            random.uniform(-25, 25),
+            random.uniform(5, 40)
+        ]
+
+        solution = solve_ivp(
+            lambda t, state: lorenz_system(state, sigma, rho, beta),
+            t_span, initial_state, t_eval=t_eval,
+            method="RK45", rtol=1e-6, atol=1e-9
+        )
+
+        # данные после трансита
+        data = np.column_stack([solution.y[0], solution.y[1], solution.y[2]])
+        data = data[transient:]  # shape: (trajectory_size, 3)
+
+        if sliding_window:
+            # скользящее окно
+            for start in range(0, trajectory_size - seq_length - test_length, 64):
+                X.append(data[start:start+seq_length])
+                Y.append(data[start+seq_length:start+seq_length+test_length])
+        else:
+            # дискретные шаги без пересечений
+            num_sequences = (trajectory_size - seq_length - test_length) // (seq_length + test_length)
+            for j in range(num_sequences):
+                start = j * (seq_length + test_length)
+                X.append(data[start:start+seq_length])
+                Y.append(data[start+seq_length:start+seq_length+test_length])
+
+    return np.array(X), np.array(Y)
 
 def generate_single_lorenz_trajectory(initial_state, sigma=10.0, rho=28.0, beta=8.0 / 3.0,
                                       num_points=10000, dt=0.01, transient=1000):
@@ -209,9 +323,9 @@ def main():
     parser_recon.add_argument("rho", type=float)
     parser_recon.add_argument("beta", type=float)
     parser_recon.add_argument("--trajectory_size", type=int, default=10000)
-    parser_recon.add_argument("--num_trajectories", type=int, default=1000)
-    parser_recon.add_argument("--seq_length", type=int, default=40)
-    parser_recon.add_argument("--dt", type=float, default=0.01)
+    parser_recon.add_argument("--num_trajectories", type=int, default=100)
+    parser_recon.add_argument("--seq_length", type=int, default=256)
+    parser_recon.add_argument("--dt", type=float, default=0.02)
     parser_recon.add_argument("--transient", type=int, default=1000)
     parser_recon.add_argument("--output", type=str, default="lorenz_data_rec.npy")
 
@@ -221,10 +335,10 @@ def main():
     parser_recon.add_argument("rho", type=float)
     parser_recon.add_argument("beta", type=float)
     parser_recon.add_argument("--trajectory_size", type=int, default=10000)
-    parser_recon.add_argument("--num_trajectories", type=int, default=2000)
-    parser_recon.add_argument("--seq_length", type=int, default=40)
-    parser_recon.add_argument("--test_length", type=int, default=100)
-    parser_recon.add_argument("--dt", type=float, default=0.01)
+    parser_recon.add_argument("--num_trajectories", type=int, default=300)
+    parser_recon.add_argument("--seq_length", type=int, default=256)
+    parser_recon.add_argument("--test_length", type=int, default=2048)
+    parser_recon.add_argument("--dt", type=float, default=0.02)
     parser_recon.add_argument("--transient", type=int, default=1000)
     parser_recon.add_argument("--output_train", type=str, default="lorenz_data_predict_train.npy")
     parser_recon.add_argument("--output_test", type=str, default="lorenz_data_predict_test.npy")
@@ -265,6 +379,7 @@ def main():
             trajectory_size=args.trajectory_size,
             num_trajectories=args.num_trajectories,
             seq_length=args.seq_length,
+            test_length=args.test_length,
             dt=args.dt, transient=args.transient
         )
 
@@ -277,10 +392,13 @@ def main():
                      str(args.rho).replace(".", "_") + "," +
                      str(args.beta).replace(".", "_") + ".npy")
         np.save(name_test, data_y)
-        print(f"[PREDICT] Данные сохранены в {args.output_train}, shape={data.shape}")
+        print(f"[PREDICT] Данные сохранены в {args.output_train}, shape={data.shape}, {data_y.shape}")
 
 if __name__ == "__main__":
     #default: python .\Lorentz.py reconstruct 0.1 0.0 1.1
-    #default: python .\Lorentz.py single 0.1 0.0 1.1 --num_point 5000 --plot
-    #default: python .\Lorentz.py predict 0.1 0.0 1.1
+    #val: python .\Lorentz.py reconstruct 10 28 2.667 --output lorenz_data_rec_test.npy --trajectory_size 4000
+
+    #default: python .\Lorentz.py single 10 28 2.667 --num_point 5000 --plot
+    #default: python .\Lorentz.py predict 10 28 2.667
+    #val: python .\Lorentz.py predict 10 28 2.667 --num_trajectories 100 --trajectory_size 6000 --output_train lorenz_data_predict_train_val.npy --output_test lorenz_data_predict_test_val.npy
     main()

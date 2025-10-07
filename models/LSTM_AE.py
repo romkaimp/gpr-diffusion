@@ -3,12 +3,12 @@ import torch.nn as nn
 
 
 class LSTMAutoencoder(nn.Module):
-    def __init__(self, input_dim=1, hidden_dim=32, num_layers=1):
+    def __init__(self, input_dim=1, hidden_dim=32, num_layers=1, decoder_layers=1):
         super(LSTMAutoencoder, self).__init__()
 
         self.encoder = nn.GRU(input_dim, hidden_dim, num_layers, batch_first=True)
 
-        self.decoder = nn.GRU(hidden_dim, hidden_dim, num_layers, batch_first=True)
+        self.decoder = nn.GRU(hidden_dim, hidden_dim, decoder_layers, batch_first=True)
 
         self.output_layer = nn.Linear(hidden_dim, input_dim)
 
@@ -32,6 +32,12 @@ class LSTMAutoencoder(nn.Module):
 
     def encode(self, x, h_0):
         _, h_n = self.encoder(x, h_0)  # h_n: (num_layers, batch, hidden_dim)
+        latent = h_n[-1]
+
+        return h_n, latent
+
+    def encode_zero(self, x):
+        _, h_n = self.encoder(x)
         latent = h_n[-1]
 
         return h_n, latent
