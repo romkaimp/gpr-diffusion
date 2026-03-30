@@ -8,6 +8,8 @@ This repository contains the implementation of a **diffusion neural network** fo
 ![Prediction Example](assets/diffusion_prediction.png)
 *Orange: diffusion prediction, Blue: used data, Green: real state. The diffusion model generates data with a distribution similar to the original.*
 
+<img width="1929" height="1971" alt="prediction on 60" src="https://github.com/user-attachments/assets/ba8a9680-8fb7-4c5a-bbb0-d7d82a51b5a5" />
+
 ## ✨ Features
 
 - 🧠 **Diffusion-based generative model** for sequential/dynamic data
@@ -25,4 +27,3 @@ gpr-diffusion/
 ├── tools/ # Utility functions (visualization, metrics)
 ├── requirements.txt # Python dependencies
 └── README.md
-<img width="1929" height="1971" alt="prediction on 60" src="https://github.com/user-attachments/assets/ba8a9680-8fb7-4c5a-bbb0-d7d82a51b5a5" />
