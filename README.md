@@ -5,10 +5,8 @@
 
 This repository contains the implementation of a **diffusion neural network** for modeling dynamic processes, developed as part of a bachelor's thesis at Bauman Moscow State Technical University. The model learns to generate realistic temporal trajectories by reversing a gradual noising process, enabling data generation with distributions similar to the original dynamics.
 
-![Prediction Example](assets/diffusion_prediction.png)
-*Orange: diffusion prediction, Blue: used data, Green: real state. The diffusion model generates data with a distribution similar to the original.*
-
 <img width="1929" height="1971" alt="prediction on 60" src="https://github.com/user-attachments/assets/ba8a9680-8fb7-4c5a-bbb0-d7d82a51b5a5" />
+*Orange: diffusion prediction, Blue: used data, Green: real state. The diffusion model generates data with a distribution similar to the original.*
 
 ## ✨ Features
 
