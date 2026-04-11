@@ -1,7 +1,6 @@
 # GPR-Diffusion: Diffusion Neural Networks for Dynamic Process Modeling
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 This repository contains the implementation of a **diffusion neural network** for modeling dynamic processes, developed as part of a bachelor's thesis at Bauman Moscow State Technical University. The model learns to generate realistic temporal trajectories by reversing a gradual noising process, enabling data generation with distributions similar to the original dynamics.
 
